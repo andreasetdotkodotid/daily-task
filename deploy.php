@@ -17,11 +17,12 @@ host('production')
     ->setRemoteUser('deploy')
     ->setDeployPath('/var/www/daily-task');
 
-task('deploy:env', function (): void {
+task('deploy:create_env', function (): void {
     $envFile = '{{deploy_path}}/shared/.env';
 
     if (! test("[ -f $envFile ]")) {
-        run("cat > $envFile <<'EOF'\nAPP_ENV=production\nAPP_URL=https://daily-task.example.com\nDB_PATH={{deploy_path}}/shared/storage/tasks.sqlite\nEOF");
+        run('mkdir -p {{deploy_path}}/shared/storage');
+        run("printf '%s\n' 'APP_ENV=production' 'APP_URL=https://daily-task.example.com' 'DB_PATH={{deploy_path}}/shared/storage/tasks.sqlite' > $envFile");
     }
 });
 
@@ -30,9 +31,15 @@ task('deploy:storage', function (): void {
 });
 
 task('deploy', [
-    'deploy:prepare',
-    'deploy:env',
+    'deploy:info',
+    'deploy:setup',
+    'deploy:lock',
+    'deploy:release',
+    'deploy:update_code',
+    'deploy:create_env',
     'deploy:storage',
+    'deploy:shared',
+    'deploy:writable',
     'deploy:vendors',
     'deploy:publish',
 ]);
