@@ -1,0 +1,20 @@
+/vendor/
+/.env
+/.deployer/
+
+# Runtime storage
+/storage/*.sqlite
+/storage/*.sqlite-*
+/storage/*.db
+/storage/*.db-*
+/storage/*.log
+
+# Local tooling
+/.phpunit.cache/
+/.php-cs-fixer.cache
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

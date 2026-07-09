@@ -1,0 +1,25 @@
+{
+  "name": "andreas/daily-task",
+  "description": "Aplikasi daily task sederhana menggunakan PHP, Composer, HTML, CSS, dan JavaScript.",
+  "type": "project",
+  "require": {
+    "php": ">=8.1",
+    "ext-pdo": "*",
+    "ext-pdo_sqlite": "*"
+  },
+  "require-dev": {
+    "deployer/deployer": "^7.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "DailyTask\\": "src/"
+    }
+  },
+  "scripts": {
+    "serve": "php -S 127.0.0.1:8000 -t public",
+    "lint": "php -l public/index.php && php -l src/Database.php && php -l src/TaskRepository.php"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}
