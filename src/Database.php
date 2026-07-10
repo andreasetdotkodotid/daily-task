@@ -33,6 +33,7 @@ final class Database
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
                 title TEXT NOT NULL,
+                obstacle TEXT,
                 notes TEXT,
                 priority TEXT NOT NULL DEFAULT 'normal',
                 due_date TEXT,
@@ -47,6 +48,10 @@ final class Database
 
         if (! in_array('user_id', $columnNames, true)) {
             $pdo->exec('ALTER TABLE tasks ADD COLUMN user_id INTEGER');
+        }
+
+        if (! in_array('obstacle', $columnNames, true)) {
+            $pdo->exec('ALTER TABLE tasks ADD COLUMN obstacle TEXT');
         }
 
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks (user_id)');

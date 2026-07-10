@@ -78,9 +78,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'create' && trim($_POST['title'] ?? '') !== '') {
         $repository->create($userId, [
             'title' => $_POST['title'],
+            'obstacle' => $_POST['obstacle'] ?? '',
             'notes' => $_POST['notes'] ?? '',
             'priority' => $_POST['priority'] ?? 'normal',
             'due_date' => $_POST['due_date'] ?? '',
+        ]);
+    }
+
+    if ($action === 'update' && trim($_POST['title'] ?? '') !== '') {
+        $repository->update($userId, (int) ($_POST['id'] ?? 0), [
+            'title' => $_POST['title'],
+            'obstacle' => $_POST['obstacle'] ?? '',
+            'notes' => $_POST['notes'] ?? '',
+            'priority' => $_POST['priority'] ?? 'normal',
+            'due_date' => $_POST['due_date'] ?? '',
+            'completed' => $_POST['completed'] ?? 0,
         ]);
     }
 
@@ -92,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $repository->delete($userId, (int) ($_POST['id'] ?? 0));
     }
 
-    header('Location: /');
+    header('Location: ' . mutationRedirect($_POST));
     exit;
 }
 
@@ -105,6 +117,7 @@ $done = count(array_filter($tasks, static fn (array $task): bool => (int) $task[
 $previousDate = date('Y-m-d', strtotime($selectedDate . ' -1 day'));
 $nextDate = date('Y-m-d', strtotime($selectedDate . ' +1 day'));
 $pageTitle = $view === 'all' ? 'Semua task' : ($selectedDate === $today ? 'Task hari ini' : 'Task untuk ' . $selectedDate);
+$editId = (int) queryParam('edit');
 
 function e(?string $value): string
 {
@@ -131,6 +144,33 @@ function queryParam(string $key): string
 function normalizeDate(string $date): ?string
 {
     return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1 ? $date : null;
+}
+
+function mutationRedirect(array $data): string
+{
+    $query = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY);
+    parse_str(is_string($query) ? $query : '', $params);
+
+    if (($params['view'] ?? '') === 'all') {
+        return '/?view=all';
+    }
+
+    $date = normalizeDate((string) ($data['due_date'] ?? '')) ?? date('Y-m-d');
+
+    return '/?date=' . rawurlencode($date);
+}
+
+function currentViewUrl(string $view, string $selectedDate): string
+{
+    return $view === 'all' ? '/?view=all' : '/?date=' . rawurlencode($selectedDate);
+}
+
+function editUrl(int $taskId, string $view, string $selectedDate): string
+{
+    $params = $view === 'all' ? ['view' => 'all'] : ['date' => $selectedDate];
+    $params['edit'] = $taskId;
+
+    return '/?' . http_build_query($params);
 }
 
 function renderLogin(?string $error): void
@@ -238,12 +278,16 @@ function renderLogin(?string $error): void
             <form method="post" class="task-form" id="taskForm">
                 <input type="hidden" name="action" value="create">
                 <label>
-                    <span>Nama tugas</span>
+                    <span>Pekerjaan</span>
                     <input name="title" id="title" type="text" placeholder="Contoh: Review laporan mingguan" maxlength="160" required>
                 </label>
                 <label>
-                    <span>Catatan</span>
-                    <textarea name="notes" rows="3" placeholder="Tambahkan konteks singkat bila perlu"></textarea>
+                    <span>Kendala <small>opsional</small></span>
+                    <textarea name="obstacle" rows="2" placeholder="Contoh: akses lambat, IP hilang, tidak ada kendala"></textarea>
+                </label>
+                <label>
+                    <span>Keterangan <small>opsional</small></span>
+                    <textarea name="notes" rows="3" placeholder="Tambahkan tindakan, hasil, atau konteks singkat bila perlu"></textarea>
                 </label>
                 <div class="form-grid">
                     <label>
@@ -279,7 +323,50 @@ function renderLogin(?string $error): void
 
             <?php foreach ($tasks as $task): ?>
                 <?php $isDone = (int) $task['completed'] === 1; ?>
-                <article class="task panel <?= $isDone ? 'is-done' : '' ?>" data-status="<?= $isDone ? 'done' : 'open' ?>">
+                <article class="task panel <?= $isDone ? 'is-done' : '' ?> <?= $editId === (int) $task['id'] ? 'is-editing' : '' ?>" data-status="<?= $isDone ? 'done' : 'open' ?>">
+                    <?php if ($editId === (int) $task['id']): ?>
+                        <form method="post" class="task-edit-form">
+                            <input type="hidden" name="action" value="update">
+                            <input type="hidden" name="id" value="<?= (int) $task['id'] ?>">
+                            <label>
+                                <span>Pekerjaan</span>
+                                <input name="title" type="text" value="<?= e($task['title']) ?>" maxlength="160" required>
+                            </label>
+                            <label>
+                                <span>Kendala <small>opsional</small></span>
+                                <textarea name="obstacle" rows="2"><?= e($task['obstacle'] ?? '') ?></textarea>
+                            </label>
+                            <label>
+                                <span>Keterangan <small>opsional</small></span>
+                                <textarea name="notes" rows="3"><?= e($task['notes'] ?? '') ?></textarea>
+                            </label>
+                            <div class="form-grid">
+                                <label>
+                                    <span>Prioritas</span>
+                                    <select name="priority">
+                                        <?php foreach (['normal' => 'Normal', 'high' => 'Tinggi', 'low' => 'Rendah'] as $value => $label): ?>
+                                            <option value="<?= e($value) ?>" <?= $task['priority'] === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Tanggal</span>
+                                    <input name="due_date" type="date" value="<?= e($task['due_date']) ?>">
+                                </label>
+                                <label>
+                                    <span>Status</span>
+                                    <select name="completed">
+                                        <option value="0" <?= ! $isDone ? 'selected' : '' ?>>On Progress</option>
+                                        <option value="1" <?= $isDone ? 'selected' : '' ?>>Done</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="edit-actions">
+                                <button type="submit">Simpan Perubahan</button>
+                                <a href="<?= e(currentViewUrl($view, $selectedDate)) ?>">Batal</a>
+                            </div>
+                        </form>
+                    <?php else: ?>
                     <div class="task-main">
                         <form method="post">
                             <input type="hidden" name="action" value="toggle">
@@ -291,19 +378,26 @@ function renderLogin(?string $error): void
                                 <h2><?= e($task['title']) ?></h2>
                                 <span class="badge priority-<?= e($task['priority']) ?>"><?= e($task['priority']) ?></span>
                             </div>
+                            <?php if ($task['obstacle'] ?? ''): ?>
+                                <p><strong>Kendala:</strong> <?= nl2br(e($task['obstacle'])) ?></p>
+                            <?php endif; ?>
                             <?php if ($task['notes']): ?>
-                                <p><?= nl2br(e($task['notes'])) ?></p>
+                                <p><strong>Keterangan:</strong> <?= nl2br(e($task['notes'])) ?></p>
                             <?php endif; ?>
                             <?php if ($task['due_date']): ?>
                                 <time datetime="<?= e($task['due_date']) ?>">Target: <?= e($task['due_date']) ?></time>
                             <?php endif; ?>
                         </div>
                     </div>
-                    <form method="post" class="delete-form">
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="id" value="<?= (int) $task['id'] ?>">
-                        <button type="submit" class="delete">Hapus</button>
-                    </form>
+                    <div class="task-actions">
+                        <a class="edit-link" href="<?= e(editUrl((int) $task['id'], $view, $selectedDate)) ?>">Edit</a>
+                        <form method="post" class="delete-form">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="id" value="<?= (int) $task['id'] ?>">
+                            <button type="submit" class="delete">Hapus</button>
+                        </form>
+                    </div>
+                    <?php endif; ?>
                 </article>
             <?php endforeach; ?>
         </section>

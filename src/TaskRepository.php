@@ -36,23 +36,52 @@ final class TaskRepository
         return $statement->fetchAll();
     }
 
-    /** @param array{title:string,notes?:string,priority?:string,due_date?:string} $data */
+    /** @param array{title:string,obstacle?:string,notes?:string,priority?:string,due_date?:string} $data */
     public function create(int $userId, array $data): void
     {
         $now = date('c');
         $statement = $this->pdo->prepare(
-            'INSERT INTO tasks (user_id, title, notes, priority, due_date, created_at, updated_at)
-             VALUES (:user_id, :title, :notes, :priority, :due_date, :created_at, :updated_at)'
+            'INSERT INTO tasks (user_id, title, obstacle, notes, priority, due_date, created_at, updated_at)
+             VALUES (:user_id, :title, :obstacle, :notes, :priority, :due_date, :created_at, :updated_at)'
         );
 
         $statement->execute([
             'user_id' => $userId,
             'title' => trim($data['title']),
+            'obstacle' => trim($data['obstacle'] ?? ''),
             'notes' => trim($data['notes'] ?? ''),
             'priority' => $this->normalizePriority($data['priority'] ?? 'normal'),
             'due_date' => $this->normalizeDate($data['due_date'] ?? ''),
             'created_at' => $now,
             'updated_at' => $now,
+        ]);
+    }
+
+    /** @param array{title:string,obstacle?:string,notes?:string,priority?:string,due_date?:string,completed?:string|int} $data */
+    public function update(int $userId, int $id, array $data): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE tasks
+             SET title = :title,
+                 obstacle = :obstacle,
+                 notes = :notes,
+                 priority = :priority,
+                 due_date = :due_date,
+                 completed = :completed,
+                 updated_at = :updated_at
+             WHERE id = :id AND user_id = :user_id'
+        );
+
+        $statement->execute([
+            'id' => $id,
+            'user_id' => $userId,
+            'title' => trim($data['title']),
+            'obstacle' => trim($data['obstacle'] ?? ''),
+            'notes' => trim($data['notes'] ?? ''),
+            'priority' => $this->normalizePriority($data['priority'] ?? 'normal'),
+            'due_date' => $this->normalizeDate($data['due_date'] ?? ''),
+            'completed' => (int) (($data['completed'] ?? 0) === '1' || ($data['completed'] ?? 0) === 1),
+            'updated_at' => date('c'),
         ]);
     }
 
