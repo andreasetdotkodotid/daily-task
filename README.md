@@ -38,12 +38,12 @@ Untuk Google OAuth, aplikasi ini akan redirect ke `AUTH_SSO_URL`, lalu menerima 
 
 ## Deploy Production Dengan Deployer
 
-1. Ubah `repository`, `hostname`, `remoteUser`, dan `deployPath` di `deploy.php`.
+1. Ubah `repository` di `deploy.php` jika nama repository berbeda.
 2. Pastikan server memiliki PHP 8.1+, Composer, ekstensi `pdo_sqlite`, dan akses SSH.
-3. Jalankan deploy:
+3. Jalankan deploy dengan environment variable agar hostname dan user server tidak perlu disimpan di repository:
 
 ```bash
-vendor/bin/dep deploy production
+DEPLOY_HOST=your-server-ip-or-domain DEPLOY_USER=deploy DEPLOY_PATH=/var/www/daily-task vendor/bin/dep deploy production
 ```
 
 Document root web server arahkan ke folder `current/public` di deploy path, contoh `/var/www/daily-task/current/public`.

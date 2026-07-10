@@ -24,6 +24,18 @@ final class TaskRepository
         return $statement->fetchAll();
     }
 
+    /** @return array<int, array<string, mixed>> */
+    public function forDate(int $userId, string $date): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT * FROM tasks WHERE user_id = :user_id AND due_date = :due_date ORDER BY completed ASC, created_at DESC'
+        );
+
+        $statement->execute(['user_id' => $userId, 'due_date' => $date]);
+
+        return $statement->fetchAll();
+    }
+
     /** @param array{title:string,notes?:string,priority?:string,due_date?:string} $data */
     public function create(int $userId, array $data): void
     {

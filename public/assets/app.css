@@ -118,6 +118,57 @@ h1 {
     padding: 22px;
 }
 
+.date-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 22px;
+    padding: 14px;
+}
+
+.date-nav a,
+.date-jump button {
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 14px;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.72);
+    cursor: pointer;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.date-nav a.active,
+.date-nav a:hover,
+.date-jump button {
+    color: white;
+    background: var(--ink);
+}
+
+.date-jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+    margin-left: auto;
+}
+
+.date-jump label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 900;
+}
+
+.date-jump input {
+    width: auto;
+    min-width: 165px;
+    padding: 10px 12px;
+    border-radius: 999px;
+}
+
 .auth-shell {
     width: min(1120px, calc(100% - 32px));
     min-height: 100vh;
@@ -438,6 +489,20 @@ textarea:focus {
     .task {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .date-jump {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .date-jump label,
+    .date-jump button {
+        flex: 1 1 160px;
+    }
+
+    .date-jump input {
+        width: 100%;
     }
 
     .delete-form,

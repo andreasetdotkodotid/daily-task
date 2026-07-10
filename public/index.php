@@ -55,7 +55,7 @@ if ($path === '/login') {
 if ($path === '/auth/callback') {
     try {
         $authClient = new AuthClient((string) getenv('AUTH_API_URL'), (string) getenv('AUTH_API_KEY'));
-        $_SESSION['user'] = $authClient->verifySsoToken((string) ($_GET['token'] ?? ''));
+        $_SESSION['user'] = $authClient->verifySsoToken(queryParam('token'));
         session_regenerate_id(true);
         header('Location: /');
         exit;
@@ -96,14 +96,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$tasks = $repository->all($userId);
+$today = date('Y-m-d');
+$selectedDate = normalizeDate(queryParam('date')) ?? $today;
+$view = queryParam('view') === 'all' ? 'all' : 'date';
+$tasks = $view === 'all' ? $repository->all($userId) : $repository->forDate($userId, $selectedDate);
 $total = count($tasks);
 $done = count(array_filter($tasks, static fn (array $task): bool => (int) $task['completed'] === 1));
-$today = date('Y-m-d');
+$previousDate = date('Y-m-d', strtotime($selectedDate . ' -1 day'));
+$nextDate = date('Y-m-d', strtotime($selectedDate . ' +1 day'));
+$pageTitle = $view === 'all' ? 'Semua task' : ($selectedDate === $today ? 'Task hari ini' : 'Task untuk ' . $selectedDate);
 
 function e(?string $value): string
 {
     return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+function queryParam(string $key): string
+{
+    if (isset($_GET[$key])) {
+        return (string) $_GET[$key];
+    }
+
+    $query = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY);
+
+    if (! is_string($query) || $query === '') {
+        return '';
+    }
+
+    parse_str($query, $params);
+
+    return isset($params[$key]) ? (string) $params[$key] : '';
+}
+
+function normalizeDate(string $date): ?string
+{
+    return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1 ? $date : null;
 }
 
 function renderLogin(?string $error): void
@@ -183,7 +210,7 @@ function renderLogin(?string $error): void
         <section class="hero">
             <div>
                 <p class="eyebrow">Daily Task</p>
-                <h1>Susun hari ini dengan lebih ringan.</h1>
+                <h1><?= e($pageTitle) ?></h1>
                 <p class="subtitle">Catat prioritas, tenggat, dan progres pekerjaan harian dalam satu tampilan sederhana. Login sebagai <?= e($currentUser['name'] ?? '') ?>.</p>
             </div>
             <div class="summary" aria-label="Ringkasan tugas">
@@ -191,6 +218,20 @@ function renderLogin(?string $error): void
                 <small>dari <?= $total ?> selesai</small>
                 <a href="/logout">Logout</a>
             </div>
+        </section>
+
+        <section class="date-nav panel" aria-label="Navigasi tanggal task">
+            <a href="/?date=<?= e($previousDate) ?>">&larr; Sebelumnya</a>
+            <a class="<?= $view === 'date' && $selectedDate === $today ? 'active' : '' ?>" href="/?date=<?= e($today) ?>">Hari Ini</a>
+            <a href="/?date=<?= e($nextDate) ?>">Berikutnya &rarr;</a>
+            <form method="get" class="date-jump">
+                <label>
+                    <span>Lompat tanggal</span>
+                    <input name="date" type="date" value="<?= e($selectedDate) ?>">
+                </label>
+                <button type="submit">Lihat</button>
+            </form>
+            <a class="<?= $view === 'all' ? 'active' : '' ?>" href="/?view=all">Semua task</a>
         </section>
 
         <section class="panel task-form-panel">
@@ -215,7 +256,7 @@ function renderLogin(?string $error): void
                     </label>
                     <label>
                         <span>Tanggal</span>
-                        <input name="due_date" type="date" value="<?= e($today) ?>">
+                        <input name="due_date" type="date" value="<?= e($selectedDate) ?>">
                     </label>
                 </div>
                 <button type="submit">Tambah Task</button>

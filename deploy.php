@@ -5,7 +5,7 @@ namespace Deployer;
 require 'recipe/common.php';
 
 set('application', 'daily-task');
-set('repository', 'git@github.com:username/daily-task.git');
+set('repository', 'git@github.com:andreasetdotkodotid/daily-task.git');
 set('keep_releases', 5);
 set('shared_dirs', ['storage']);
 set('shared_files', ['.env']);
@@ -13,9 +13,9 @@ set('writable_dirs', ['storage']);
 set('composer_options', '--verbose --prefer-dist --no-progress --no-interaction --no-dev --optimize-autoloader');
 
 host('production')
-    ->setHostname('server_domain_or_ip_address')
-    ->setRemoteUser('deploy')
-    ->setDeployPath('/var/www/daily-task');
+    ->setHostname(getenv('DEPLOY_HOST') ?: 'your-server-ip-or-domain')
+    ->setRemoteUser(getenv('DEPLOY_USER') ?: 'deploy')
+    ->setDeployPath(getenv('DEPLOY_PATH') ?: '/var/www/daily-task');
 
 task('deploy:create_env', function (): void {
     $envFile = '{{deploy_path}}/shared/.env';
