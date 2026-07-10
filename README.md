@@ -27,7 +27,14 @@ Salin `.env.example` menjadi `.env` bila ingin mengatur konfigurasi production.
 APP_ENV=production
 APP_URL=https://daily-task.example.com
 DB_PATH=storage/tasks.sqlite
+AUTH_API_URL=https://login.dotko.id/api/login
+AUTH_SSO_URL=https://login.dotko.id/sso/google
+AUTH_API_KEY=change-this-api-client-secret
 ```
+
+`AUTH_API_KEY` harus sama dengan `API_CLIENT_SECRET` di aplikasi login Flask.
+
+Untuk Google OAuth, aplikasi ini akan redirect ke `AUTH_SSO_URL`, lalu menerima callback di `/auth/callback`. Pastikan `APP_URL` sesuai domain aplikasi ini dan host-nya masuk ke `SSO_ALLOWED_RETURN_HOSTS` pada aplikasi Flask.
 
 ## Deploy Production Dengan Deployer
 

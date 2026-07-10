@@ -22,7 +22,7 @@ task('deploy:create_env', function (): void {
 
     if (! test("[ -f $envFile ]")) {
         run('mkdir -p {{deploy_path}}/shared/storage');
-        run("printf '%s\n' 'APP_ENV=production' 'APP_URL=https://daily-task.example.com' 'DB_PATH={{deploy_path}}/shared/storage/tasks.sqlite' > $envFile");
+        run("printf '%s\n' 'APP_ENV=production' 'APP_URL=https://daily-task.example.com' 'DB_PATH={{deploy_path}}/shared/storage/tasks.sqlite' 'AUTH_API_URL=https://login.dotko.id/api/login' 'AUTH_SSO_URL=https://login.dotko.id/sso/google' 'AUTH_API_KEY=change-this-api-client-secret' > $envFile");
     }
 });
 

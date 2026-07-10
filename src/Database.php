@@ -31,6 +31,7 @@ final class Database
         $pdo->exec(<<<'SQL'
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
                 title TEXT NOT NULL,
                 notes TEXT,
                 priority TEXT NOT NULL DEFAULT 'normal',
@@ -40,5 +41,14 @@ final class Database
                 updated_at TEXT NOT NULL
             )
             SQL);
+
+        $columns = $pdo->query('PRAGMA table_info(tasks)')->fetchAll();
+        $columnNames = array_column($columns, 'name');
+
+        if (! in_array('user_id', $columnNames, true)) {
+            $pdo->exec('ALTER TABLE tasks ADD COLUMN user_id INTEGER');
+        }
+
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks (user_id)');
     }
 }

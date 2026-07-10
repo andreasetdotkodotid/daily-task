@@ -3,18 +3,80 @@
 declare(strict_types=1);
 
 use DailyTask\Database;
+use DailyTask\AuthClient;
+use DailyTask\Config;
 use DailyTask\TaskRepository;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
+session_start();
+
+Config::loadEnv(dirname(__DIR__) . '/.env');
+
 $dbPath = getenv('DB_PATH') ?: dirname(__DIR__) . '/storage/tasks.sqlite';
 $repository = new TaskRepository(Database::connect($dbPath));
+$currentUser = $_SESSION['user'] ?? null;
+$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
+
+if ($path === '/logout') {
+    $_SESSION = [];
+    session_destroy();
+    header('Location: /login');
+    exit;
+}
+
+if ($path === '/login') {
+    $loginError = null;
+
+    if ($currentUser) {
+        header('Location: /');
+        exit;
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        try {
+            $authClient = new AuthClient((string) getenv('AUTH_API_URL'), (string) getenv('AUTH_API_KEY'));
+            $_SESSION['user'] = $authClient->login(
+                trim((string) ($_POST['email'] ?? '')),
+                (string) ($_POST['password'] ?? '')
+            );
+            session_regenerate_id(true);
+            header('Location: /');
+            exit;
+        } catch (Throwable $exception) {
+            $loginError = $exception->getMessage();
+        }
+    }
+
+    renderLogin($loginError);
+    exit;
+}
+
+if ($path === '/auth/callback') {
+    try {
+        $authClient = new AuthClient((string) getenv('AUTH_API_URL'), (string) getenv('AUTH_API_KEY'));
+        $_SESSION['user'] = $authClient->verifySsoToken((string) ($_GET['token'] ?? ''));
+        session_regenerate_id(true);
+        header('Location: /');
+        exit;
+    } catch (Throwable $exception) {
+        renderLogin($exception->getMessage());
+        exit;
+    }
+}
+
+if (! $currentUser) {
+    header('Location: /login');
+    exit;
+}
+
+$userId = (int) $currentUser['id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? 'create';
 
     if ($action === 'create' && trim($_POST['title'] ?? '') !== '') {
-        $repository->create([
+        $repository->create($userId, [
             'title' => $_POST['title'],
             'notes' => $_POST['notes'] ?? '',
             'priority' => $_POST['priority'] ?? 'normal',
@@ -23,18 +85,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'toggle') {
-        $repository->toggle((int) ($_POST['id'] ?? 0));
+        $repository->toggle($userId, (int) ($_POST['id'] ?? 0));
     }
 
     if ($action === 'delete') {
-        $repository->delete((int) ($_POST['id'] ?? 0));
+        $repository->delete($userId, (int) ($_POST['id'] ?? 0));
     }
 
     header('Location: /');
     exit;
 }
 
-$tasks = $repository->all();
+$tasks = $repository->all($userId);
 $total = count($tasks);
 $done = count(array_filter($tasks, static fn (array $task): bool => (int) $task['completed'] === 1));
 $today = date('Y-m-d');
@@ -42,6 +104,59 @@ $today = date('Y-m-d');
 function e(?string $value): string
 {
     return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+function renderLogin(?string $error): void
+{
+    $appUrl = rtrim((string) (getenv('APP_URL') ?: 'http://127.0.0.1:8000'), '/');
+    $ssoUrl = (string) getenv('AUTH_SSO_URL');
+    $googleUrl = $ssoUrl !== '' ? $ssoUrl . '?return_url=' . rawurlencode($appUrl . '/auth/callback') : '';
+
+    ?>
+    <!doctype html>
+    <html lang="id">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Login - Daily Task</title>
+        <link rel="stylesheet" href="/assets/app.css">
+    </head>
+    <body>
+        <main class="shell auth-shell">
+            <section class="hero auth-hero">
+                <div>
+                    <p class="eyebrow">Private Workspace</p>
+                    <h1>Masuk untuk melihat daily task.</h1>
+                    <p class="subtitle">Gunakan akun dari aplikasi login utama. Task kamu tidak akan tampil ke publik.</p>
+                </div>
+            </section>
+
+            <section class="panel auth-card">
+                <?php if ($error): ?>
+                    <div class="alert"><?= e($error) ?></div>
+                <?php endif; ?>
+
+                <?php if ($googleUrl !== ''): ?>
+                    <a class="google-login" href="<?= e($googleUrl) ?>">Masuk dengan Google</a>
+                    <div class="divider"><span>atau</span></div>
+                <?php endif; ?>
+
+                <form method="post" class="task-form">
+                    <label>
+                        <span>Email</span>
+                        <input name="email" type="email" autocomplete="email" required autofocus>
+                    </label>
+                    <label>
+                        <span>Password</span>
+                        <input name="password" type="password" autocomplete="current-password" required>
+                    </label>
+                    <button type="submit">Masuk</button>
+                </form>
+            </section>
+        </main>
+    </body>
+    </html>
+    <?php
 }
 ?>
 <!doctype html>
@@ -58,11 +173,12 @@ function e(?string $value): string
             <div>
                 <p class="eyebrow">Daily Task</p>
                 <h1>Susun hari ini dengan lebih ringan.</h1>
-                <p class="subtitle">Catat prioritas, tenggat, dan progres pekerjaan harian dalam satu tampilan sederhana.</p>
+                <p class="subtitle">Catat prioritas, tenggat, dan progres pekerjaan harian dalam satu tampilan sederhana. Login sebagai <?= e($currentUser['name'] ?? '') ?>.</p>
             </div>
             <div class="summary" aria-label="Ringkasan tugas">
                 <span><?= $done ?></span>
                 <small>dari <?= $total ?> selesai</small>
+                <a href="/logout">Logout</a>
             </div>
         </section>
 

@@ -4,6 +4,7 @@
   "type": "project",
   "require": {
     "php": ">=8.1",
+    "ext-curl": "*",
     "ext-pdo": "*",
     "ext-pdo_sqlite": "*"
   },
@@ -17,7 +18,7 @@
   },
   "scripts": {
     "serve": "php -S 127.0.0.1:8000 -t public",
-    "lint": "php -l public/index.php && php -l src/Database.php && php -l src/TaskRepository.php"
+    "lint": "php -l public/index.php && php -l src/AuthClient.php && php -l src/Config.php && php -l src/Database.php && php -l src/TaskRepository.php"
   },
   "config": {
     "sort-packages": true
