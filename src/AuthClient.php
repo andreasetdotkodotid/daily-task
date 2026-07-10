@@ -73,21 +73,32 @@ final class AuthClient
     /** @return array{id:int,email:string,name:string,provider:string} */
     public function verifySsoToken(string $token): array
     {
+        $token = trim($token);
+
         if ($this->apiKey === '') {
             throw new RuntimeException('Konfigurasi secret SSO belum lengkap.');
         }
 
-        $parts = explode('.', $token, 2);
+        if ($token === '') {
+            throw new RuntimeException('Token SSO tidak ditemukan. Silakan login ulang dengan Google.');
+        }
+
+        $parts = explode('.', $token);
 
         if (count($parts) !== 2) {
-            throw new RuntimeException('Token SSO tidak valid.');
+            throw new RuntimeException('Format token SSO tidak valid. Silakan login ulang dengan Google.');
         }
 
         [$encodedPayload, $signature] = $parts;
+
+        if ($encodedPayload === '' || $signature === '') {
+            throw new RuntimeException('Token SSO tidak lengkap. Silakan login ulang dengan Google.');
+        }
+
         $expectedSignature = $this->base64UrlEncode(hash_hmac('sha256', $encodedPayload, $this->apiKey, true));
 
         if (! hash_equals($expectedSignature, $signature)) {
-            throw new RuntimeException('Signature token SSO tidak valid.');
+            throw new RuntimeException('Signature token SSO tidak valid. Pastikan AUTH_API_KEY sama dengan API_CLIENT_SECRET.');
         }
 
         $payload = json_decode($this->base64UrlDecode($encodedPayload), true);
@@ -98,6 +109,12 @@ final class AuthClient
 
         if ((int) ($payload['exp'] ?? 0) < time()) {
             throw new RuntimeException('Token SSO sudah kedaluwarsa.');
+        }
+
+        foreach (['id', 'email', 'name', 'provider'] as $field) {
+            if (! isset($payload[$field])) {
+                throw new RuntimeException('Payload token SSO tidak lengkap.');
+            }
         }
 
         return [

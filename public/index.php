@@ -121,34 +121,45 @@ function renderLogin(?string $error): void
         <title>Login - Daily Task</title>
         <link rel="stylesheet" href="/assets/app.css">
     </head>
-    <body>
-        <main class="shell auth-shell">
-            <section class="hero auth-hero">
-                <div>
-                    <p class="eyebrow">Private Workspace</p>
-                    <h1>Masuk untuk melihat daily task.</h1>
-                    <p class="subtitle">Gunakan akun dari aplikasi login utama. Task kamu tidak akan tampil ke publik.</p>
+    <body class="auth-page">
+        <main class="auth-shell">
+            <section class="auth-copy">
+                <p class="eyebrow">Private Workspace</p>
+                <h1>Daily task yang hanya kamu yang bisa buka.</h1>
+                <p class="subtitle">Masuk memakai akun pusat di login.dotko.id. Setelah login, task harian akan tersimpan sesuai user kamu.</p>
+                <div class="auth-points" aria-label="Keamanan aplikasi">
+                    <span>Google OAuth</span>
+                    <span>Session privat</span>
+                    <span>Task per user</span>
                 </div>
             </section>
 
-            <section class="panel auth-card">
+            <section class="panel auth-card" aria-label="Form login">
+                <div class="auth-card-header">
+                    <p class="eyebrow">Login</p>
+                    <h2>Masuk ke Daily Task</h2>
+                </div>
+
                 <?php if ($error): ?>
                     <div class="alert"><?= e($error) ?></div>
                 <?php endif; ?>
 
                 <?php if ($googleUrl !== ''): ?>
-                    <a class="google-login" href="<?= e($googleUrl) ?>">Masuk dengan Google</a>
-                    <div class="divider"><span>atau</span></div>
+                    <a class="google-login" href="<?= e($googleUrl) ?>">
+                        <span class="google-mark">G</span>
+                        <span>Masuk dengan Google</span>
+                    </a>
+                    <div class="divider"><span>atau pakai email</span></div>
                 <?php endif; ?>
 
-                <form method="post" class="task-form">
+                <form method="post" class="task-form auth-form">
                     <label>
                         <span>Email</span>
-                        <input name="email" type="email" autocomplete="email" required autofocus>
+                        <input name="email" type="email" placeholder="nama@email.com" autocomplete="email" required autofocus>
                     </label>
                     <label>
                         <span>Password</span>
-                        <input name="password" type="password" autocomplete="current-password" required>
+                        <input name="password" type="password" placeholder="Password akun login" autocomplete="current-password" required>
                     </label>
                     <button type="submit">Masuk</button>
                 </form>
