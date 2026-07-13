@@ -226,6 +226,37 @@ function editUrl(int $taskId, string $view, string $selectedDate): string
     return '/?' . http_build_query($params);
 }
 
+function renderThemeBoot(): void
+{
+    ?>
+    <script>
+        (() => {
+            let theme = 'default';
+
+            try {
+                theme = localStorage.getItem('dailyTaskTheme') || 'default';
+            } catch (error) {
+                theme = 'default';
+            }
+
+            document.documentElement.dataset.theme = theme;
+        })();
+    </script>
+    <?php
+}
+
+function renderThemeSwitcher(): void
+{
+    ?>
+    <section class="theme-switcher panel" aria-label="Pilihan tema warna">
+        <span>Tema</span>
+        <button type="button" class="theme-option active" data-theme="default" aria-pressed="true"><i></i>Default</button>
+        <button type="button" class="theme-option" data-theme="pink" aria-pressed="false"><i></i>Baby Pink</button>
+        <button type="button" class="theme-option" data-theme="navy" aria-pressed="false"><i></i>Navy</button>
+    </section>
+    <?php
+}
+
 /** @param array{webhook_url:string,spreadsheet_id:string,sheet_name:string,sync_secret:string} $settings */
 function assertSheetSettings(array $settings): void
 {
@@ -290,10 +321,12 @@ function renderSheetPage(array $settings, array $tasks, string $sheetDate, array
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Google Sheet Sync - Daily Task</title>
+        <?php renderThemeBoot(); ?>
         <link rel="stylesheet" href="/assets/app.css">
     </head>
     <body>
         <main class="shell">
+            <?php renderThemeSwitcher(); ?>
             <section class="hero">
                 <div>
                     <p class="eyebrow">Google Sheet Sync</p>
@@ -396,6 +429,7 @@ function renderSheetPage(array $settings, array $tasks, string $sheetDate, array
                 <p class="sheet-note">Mode sync: baris pada tanggal ini akan diganti ulang di Google Sheet agar tidak duplikat.</p>
             </section>
         </main>
+        <script src="/assets/app.js" defer></script>
     </body>
     </html>
     <?php
@@ -414,10 +448,12 @@ function renderLogin(?string $error): void
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Login - Daily Task</title>
+        <?php renderThemeBoot(); ?>
         <link rel="stylesheet" href="/assets/app.css">
     </head>
     <body class="auth-page">
         <main class="auth-shell">
+            <?php renderThemeSwitcher(); ?>
             <section class="auth-copy">
                 <p class="eyebrow">Private Workspace</p>
                 <h1>Daily task yang hanya kamu yang bisa buka.</h1>
@@ -460,6 +496,7 @@ function renderLogin(?string $error): void
                 </form>
             </section>
         </main>
+        <script src="/assets/app.js" defer></script>
     </body>
     </html>
     <?php
@@ -471,10 +508,12 @@ function renderLogin(?string $error): void
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Daily Task</title>
+    <?php renderThemeBoot(); ?>
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
     <main class="shell">
+        <?php renderThemeSwitcher(); ?>
         <section class="hero">
             <div>
                 <p class="eyebrow">Daily Task</p>
