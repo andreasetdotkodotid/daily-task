@@ -55,5 +55,17 @@ final class Database
         }
 
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks (user_id)');
+
+        $pdo->exec(<<<'SQL'
+            CREATE TABLE IF NOT EXISTS sheet_settings (
+                user_id INTEGER PRIMARY KEY,
+                webhook_url TEXT,
+                spreadsheet_id TEXT,
+                sheet_name TEXT,
+                sync_secret TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            SQL);
     }
 }

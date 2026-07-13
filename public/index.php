@@ -5,6 +5,8 @@ declare(strict_types=1);
 use DailyTask\Database;
 use DailyTask\AuthClient;
 use DailyTask\Config;
+use DailyTask\GoogleSheetClient;
+use DailyTask\SheetSettingsRepository;
 use DailyTask\TaskRepository;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -14,7 +16,9 @@ session_start();
 Config::loadEnv(dirname(__DIR__) . '/.env');
 
 $dbPath = getenv('DB_PATH') ?: dirname(__DIR__) . '/storage/tasks.sqlite';
-$repository = new TaskRepository(Database::connect($dbPath));
+$pdo = Database::connect($dbPath);
+$repository = new TaskRepository($pdo);
+$sheetSettingsRepository = new SheetSettingsRepository($pdo);
 $currentUser = $_SESSION['user'] ?? null;
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
 
@@ -71,6 +75,55 @@ if (! $currentUser) {
 }
 
 $userId = (int) $currentUser['id'];
+
+if ($path === '/sheet') {
+    $sheetDate = normalizeDate(queryParam('date')) ?? date('Y-m-d');
+    $settings = $sheetSettingsRepository->get($userId);
+    $sheetMessage = null;
+    $sheetError = null;
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $action = $_POST['action'] ?? '';
+
+        if ($action === 'save_sheet_settings') {
+            $sheetSettingsRepository->save($userId, [
+                'webhook_url' => $_POST['webhook_url'] ?? '',
+                'spreadsheet_id' => $_POST['spreadsheet_id'] ?? '',
+                'sheet_name' => $_POST['sheet_name'] ?? '',
+                'sync_secret' => $_POST['sync_secret'] ?? '',
+            ]);
+            header('Location: /sheet?date=' . rawurlencode($sheetDate) . '&saved=1');
+            exit;
+        }
+
+        if ($action === 'sync_sheet') {
+            try {
+                $settings = $sheetSettingsRepository->get($userId);
+                assertSheetSettings($settings);
+                $sheetMessage = (new GoogleSheetClient())->sync(
+                    $settings['webhook_url'],
+                    buildSheetPayload($settings, $repository->forDate($userId, $sheetDate), $sheetDate, $currentUser)
+                );
+            } catch (Throwable $exception) {
+                $sheetError = $exception->getMessage();
+            }
+        }
+    }
+
+    if (queryParam('saved') === '1') {
+        $sheetMessage = 'Konfigurasi Google Sheet disimpan.';
+    }
+
+    renderSheetPage(
+        $settings,
+        $repository->forDate($userId, $sheetDate),
+        $sheetDate,
+        $currentUser,
+        $sheetMessage,
+        $sheetError
+    );
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? 'create';
@@ -173,6 +226,181 @@ function editUrl(int $taskId, string $view, string $selectedDate): string
     return '/?' . http_build_query($params);
 }
 
+/** @param array{webhook_url:string,spreadsheet_id:string,sheet_name:string,sync_secret:string} $settings */
+function assertSheetSettings(array $settings): void
+{
+    foreach (['webhook_url', 'spreadsheet_id', 'sheet_name', 'sync_secret'] as $field) {
+        if (trim($settings[$field] ?? '') === '') {
+            throw new RuntimeException('Konfigurasi Google Sheet belum lengkap.');
+        }
+    }
+}
+
+/**
+ * @param array{webhook_url:string,spreadsheet_id:string,sheet_name:string,sync_secret:string} $settings
+ * @param array<int, array<string, mixed>> $tasks
+ * @param array<string, mixed> $currentUser
+ * @return array<string, mixed>
+ */
+function buildSheetPayload(array $settings, array $tasks, string $date, array $currentUser): array
+{
+    return [
+        'secret' => $settings['sync_secret'],
+        'spreadsheet_id' => $settings['spreadsheet_id'],
+        'sheet_name' => $settings['sheet_name'],
+        'mode' => 'replace_date',
+        'date' => $date,
+        'user' => [
+            'id' => (int) ($currentUser['id'] ?? 0),
+            'name' => (string) ($currentUser['name'] ?? ''),
+            'email' => (string) ($currentUser['email'] ?? ''),
+        ],
+        'rows' => array_map(static fn (array $task): array => sheetRow($task), $tasks),
+    ];
+}
+
+/** @param array<string, mixed> $task */
+function sheetRow(array $task): array
+{
+    $done = (int) $task['completed'] === 1;
+
+    return [
+        'date' => (string) ($task['due_date'] ?? ''),
+        'task' => (string) ($task['title'] ?? ''),
+        'obstacle' => (string) ($task['obstacle'] ?? ''),
+        'note' => (string) ($task['notes'] ?? ''),
+        'done' => $done,
+        'on_progress' => ! $done,
+    ];
+}
+
+/**
+ * @param array{webhook_url:string,spreadsheet_id:string,sheet_name:string,sync_secret:string} $settings
+ * @param array<int, array<string, mixed>> $tasks
+ * @param array<string, mixed> $currentUser
+ */
+function renderSheetPage(array $settings, array $tasks, string $sheetDate, array $currentUser, ?string $message, ?string $error): void
+{
+    $previousDate = date('Y-m-d', strtotime($sheetDate . ' -1 day'));
+    $nextDate = date('Y-m-d', strtotime($sheetDate . ' +1 day'));
+    ?>
+    <!doctype html>
+    <html lang="id">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Google Sheet Sync - Daily Task</title>
+        <link rel="stylesheet" href="/assets/app.css">
+    </head>
+    <body>
+        <main class="shell">
+            <section class="hero">
+                <div>
+                    <p class="eyebrow">Google Sheet Sync</p>
+                    <h1>Laporan task untuk <?= e($sheetDate) ?></h1>
+                    <p class="subtitle">Preview data sebelum dikirim ke Google Sheet. Sync bersifat manual dan memakai mode replace tanggal agar tidak duplikat.</p>
+                </div>
+                <div class="summary" aria-label="Ringkasan sync">
+                    <span><?= count($tasks) ?></span>
+                    <small>baris laporan</small>
+                    <a href="/">Kembali</a>
+                </div>
+            </section>
+
+            <?php if ($message): ?>
+                <div class="alert success-alert"><?= e($message) ?></div>
+            <?php endif; ?>
+            <?php if ($error): ?>
+                <div class="alert"><?= e($error) ?></div>
+            <?php endif; ?>
+
+            <section class="date-nav panel" aria-label="Navigasi tanggal laporan">
+                <a href="/sheet?date=<?= e($previousDate) ?>">&larr; Sebelumnya</a>
+                <a href="/sheet?date=<?= e(date('Y-m-d')) ?>">Hari Ini</a>
+                <a href="/sheet?date=<?= e($nextDate) ?>">Berikutnya &rarr;</a>
+                <form method="get" action="/sheet" class="date-jump">
+                    <label>
+                        <span>Lompat tanggal</span>
+                        <input name="date" type="date" value="<?= e($sheetDate) ?>">
+                    </label>
+                    <button type="submit">Lihat</button>
+                </form>
+            </section>
+
+            <section class="panel task-form-panel sheet-settings">
+                <form method="post" class="task-form">
+                    <input type="hidden" name="action" value="save_sheet_settings">
+                    <label>
+                        <span>Apps Script Webhook URL</span>
+                        <input name="webhook_url" type="url" value="<?= e($settings['webhook_url']) ?>" placeholder="https://script.google.com/macros/s/.../exec">
+                    </label>
+                    <label>
+                        <span>Spreadsheet ID</span>
+                        <input name="spreadsheet_id" type="text" value="<?= e($settings['spreadsheet_id']) ?>" placeholder="ID dari URL Google Sheet">
+                    </label>
+                    <div class="form-grid">
+                        <label>
+                            <span>Sheet Name</span>
+                            <input name="sheet_name" type="text" value="<?= e($settings['sheet_name']) ?>" placeholder="Daily Report">
+                        </label>
+                        <label>
+                            <span>Sync Secret</span>
+                            <input name="sync_secret" type="password" value="<?= e($settings['sync_secret']) ?>" placeholder="Secret yang sama di Apps Script">
+                        </label>
+                    </div>
+                    <button type="submit">Simpan Konfigurasi</button>
+                </form>
+            </section>
+
+            <section class="panel sheet-preview">
+                <div class="sheet-preview-header">
+                    <div>
+                        <p class="eyebrow">Preview</p>
+                        <h2>Data yang akan dikirim</h2>
+                    </div>
+                    <form method="post">
+                        <input type="hidden" name="action" value="sync_sheet">
+                        <button type="submit" <?= $tasks === [] ? 'disabled' : '' ?>>Sync ke Google Sheet</button>
+                    </form>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tgl</th>
+                                <th>Pekerjaan</th>
+                                <th>Kendala</th>
+                                <th>Keterangan</th>
+                                <th>Done</th>
+                                <th>On Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($tasks === []): ?>
+                                <tr><td colspan="6">Belum ada task untuk tanggal ini.</td></tr>
+                            <?php endif; ?>
+                            <?php foreach ($tasks as $task): ?>
+                                <?php $row = sheetRow($task); ?>
+                                <tr>
+                                    <td><?= e($row['date']) ?></td>
+                                    <td><?= e($row['task']) ?></td>
+                                    <td><?= e($row['obstacle'] ?: '-') ?></td>
+                                    <td><?= nl2br(e($row['note'] ?: '-')) ?></td>
+                                    <td><?= $row['done'] ? 'TRUE' : 'FALSE' ?></td>
+                                    <td><?= $row['on_progress'] ? 'TRUE' : 'FALSE' ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="sheet-note">Mode sync: baris pada tanggal ini akan diganti ulang di Google Sheet agar tidak duplikat.</p>
+            </section>
+        </main>
+    </body>
+    </html>
+    <?php
+}
+
 function renderLogin(?string $error): void
 {
     $appUrl = rtrim((string) (getenv('APP_URL') ?: 'http://127.0.0.1:8000'), '/');
@@ -264,6 +492,7 @@ function renderLogin(?string $error): void
             <a href="/?date=<?= e($previousDate) ?>">&larr; Sebelumnya</a>
             <a class="<?= $view === 'date' && $selectedDate === $today ? 'active' : '' ?>" href="/?date=<?= e($today) ?>">Hari Ini</a>
             <a href="/?date=<?= e($nextDate) ?>">Berikutnya &rarr;</a>
+            <a href="/sheet?date=<?= e($selectedDate) ?>">Sync Google Sheet</a>
             <form method="get" class="date-jump">
                 <label>
                     <span>Lompat tanggal</span>
