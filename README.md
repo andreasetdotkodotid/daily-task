@@ -115,6 +115,32 @@ function json(data) {
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+function testDoPost() {
+  return doPost({
+    postData: {
+      contents: JSON.stringify({
+        secret: SYNC_SECRET,
+        spreadsheet_id: 'ISI_SPREADSHEET_ID_UNTUK_TEST',
+        sheet_name: 'Daily Report',
+        mode: 'replace_date',
+        date: '2026-07-10',
+        rows: [
+          {
+            date: '2026-07-10',
+            task: 'Test dari Apps Script',
+            obstacle: '-',
+            note: 'Baris test manual',
+            done: false,
+            on_progress: true,
+          },
+        ],
+      }),
+    },
+  });
+}
 ```
 
 Deploy Apps Script sebagai Web App dengan akses yang sesuai, lalu gunakan URL `/exec` sebagai Webhook URL.
+
+Catatan: `doPost(e)` tidak bisa dijalankan langsung dari editor Apps Script karena object `e.postData` hanya tersedia saat dipanggil lewat HTTP POST. Untuk test dari editor, jalankan fungsi `testDoPost()` setelah mengisi `spreadsheet_id` test.

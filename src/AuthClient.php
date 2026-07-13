@@ -21,32 +21,7 @@ final class AuthClient
             throw new RuntimeException('Konfigurasi API login belum lengkap.');
         }
 
-        $handle = curl_init($this->loginUrl);
-
-        if ($handle === false) {
-            throw new RuntimeException('Gagal memulai koneksi ke API login.');
-        }
-
-        curl_setopt_array($handle, [
-            CURLOPT_POST => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Accept: application/json',
-                'X-API-Key: ' . $this->apiKey,
-            ],
-            CURLOPT_POSTFIELDS => json_encode(['email' => $email, 'password' => $password], JSON_THROW_ON_ERROR),
-            CURLOPT_TIMEOUT => 12,
-        ]);
-
-        $response = curl_exec($handle);
-        $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
-        $error = curl_error($handle);
-        curl_close($handle);
-
-        if ($response === false) {
-            throw new RuntimeException('API login tidak dapat dihubungi: ' . $error);
-        }
+        [$status, $response] = $this->postJson($this->loginUrl, ['email' => $email, 'password' => $password]);
 
         $payload = json_decode($response, true);
 
@@ -145,5 +120,67 @@ final class AuthClient
         }
 
         return $decoded;
+    }
+
+    /** @param array<string, string> $payload */
+    private function postJson(string $url, array $payload): array
+    {
+        $body = json_encode($payload, JSON_THROW_ON_ERROR);
+        $headers = [
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'X-API-Key: ' . $this->apiKey,
+        ];
+
+        if (function_exists('curl_init')) {
+            $handle = \curl_init($url);
+
+            if ($handle === false) {
+                throw new RuntimeException('Gagal memulai koneksi ke API login.');
+            }
+
+            \curl_setopt_array($handle, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_POSTFIELDS => $body,
+                CURLOPT_TIMEOUT => 12,
+            ]);
+
+            $response = \curl_exec($handle);
+            $status = (int) \curl_getinfo($handle, CURLINFO_HTTP_CODE);
+            $error = \curl_error($handle);
+            \curl_close($handle);
+
+            if ($response === false) {
+                throw new RuntimeException('API login tidak dapat dihubungi: ' . $error);
+            }
+
+            return [$status, $response];
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => implode("\r\n", $headers) . "\r\n",
+                'content' => $body,
+                'timeout' => 12,
+                'ignore_errors' => true,
+            ],
+        ]);
+        $response = file_get_contents($url, false, $context);
+
+        if ($response === false) {
+            throw new RuntimeException('API login tidak dapat dihubungi. Aktifkan ekstensi php-curl atau pastikan allow_url_fopen aktif.');
+        }
+
+        $status = 200;
+        foreach ($http_response_header ?? [] as $header) {
+            if (preg_match('/^HTTP\/\S+\s+(\d+)/', $header, $matches) === 1) {
+                $status = (int) $matches[1];
+            }
+        }
+
+        return [$status, $response];
     }
 }
