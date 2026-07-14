@@ -419,8 +419,8 @@ function renderSheetPage(array $settings, array $tasks, string $sheetDate, array
                                     <td><?= e($row['task']) ?></td>
                                     <td><?= e($row['obstacle'] ?: '-') ?></td>
                                     <td><?= nl2br(e($row['note'] ?: '-')) ?></td>
-                                    <td><?= $row['done'] ? 'TRUE' : 'FALSE' ?></td>
-                                    <td><?= $row['on_progress'] ? 'TRUE' : 'FALSE' ?></td>
+                                    <td class="check-cell"><?= $row['done'] ? '&#10003;' : '' ?></td>
+                                    <td class="check-cell"><?= $row['on_progress'] ? '&#10003;' : '' ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>

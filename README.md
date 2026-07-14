@@ -59,6 +59,13 @@ Fitur Google Sheet memakai Apps Script Web App. Di aplikasi, buka menu `Sync Goo
 
 Mode sync adalah `replace_date`: data pada tanggal yang dipilih akan diganti ulang agar tidak duplikat.
 
+Jika muncul `HTTP 401`, cek hal ini terlebih dahulu:
+
+- Gunakan URL deployment Web App yang berakhiran `/exec`, bukan `/dev`.
+- Pada Apps Script, buka `Deploy` -> `Manage deployments` -> edit deployment -> buat `New version` setelah mengubah `SYNC_SECRET`.
+- Pastikan `Who has access` diset ke `Anyone`. Request dari server PHP tidak membawa login Google Anda.
+- Pastikan nilai `SYNC_SECRET` di Apps Script sama persis dengan kolom `Sync Secret` di aplikasi, termasuk huruf besar/kecil, `/`, `+`, dan `=`.
+
 Contoh Apps Script:
 
 ```javascript
@@ -100,10 +107,13 @@ function doPost(e) {
   ]);
 
   if (rows.length > 0) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
+    const startRow = sheet.getLastRow() + 1;
+    sheet.getRange(startRow, 1, rows.length, 6).setValues(rows);
+    sheet.getRange(startRow, 5, rows.length, 2).insertCheckboxes();
   }
 
   if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 5, sheet.getLastRow() - 1, 2).insertCheckboxes();
     sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).sort({ column: 1, ascending: false });
   }
 
@@ -144,3 +154,5 @@ function testDoPost() {
 Deploy Apps Script sebagai Web App dengan akses yang sesuai, lalu gunakan URL `/exec` sebagai Webhook URL.
 
 Catatan: `doPost(e)` tidak bisa dijalankan langsung dari editor Apps Script karena object `e.postData` hanya tersedia saat dipanggil lewat HTTP POST. Untuk test dari editor, jalankan fungsi `testDoPost()` setelah mengisi `spreadsheet_id` test.
+
+Kolom `Done` dan `On Progress` memakai checkbox Google Sheet. Apps Script tetap menerima boolean `true/false` dari aplikasi, lalu menerapkan `insertCheckboxes()` pada kolom E dan F agar tampil sebagai ceklis, bukan teks `TRUE/FALSE`.

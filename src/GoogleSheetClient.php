@@ -20,7 +20,13 @@ final class GoogleSheetClient
         $decoded = json_decode($response, true);
 
         if ($status < 200 || $status >= 300) {
-            throw new RuntimeException('Sync gagal dari Google Apps Script. HTTP ' . $status);
+            $message = is_array($decoded) && isset($decoded['message'])
+                ? (string) $decoded['message']
+                : trim(strip_tags($response));
+
+            throw new RuntimeException(
+                'Sync gagal dari Google Apps Script. HTTP ' . $status . ($message !== '' ? ': ' . substr($message, 0, 300) : '')
+            );
         }
 
         if (is_array($decoded) && ($decoded['ok'] ?? false) === false) {

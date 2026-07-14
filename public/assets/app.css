@@ -373,6 +373,13 @@ td {
     line-height: 1.5;
 }
 
+.check-cell {
+    color: var(--green);
+    font-size: 1.1rem;
+    font-weight: 900;
+    text-align: center;
+}
+
 .sheet-note {
     margin: 16px 0 0;
     color: var(--muted);
