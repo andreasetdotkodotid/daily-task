@@ -48,6 +48,44 @@ DEPLOY_HOST=your-server-ip-or-domain DEPLOY_USER=deploy DEPLOY_PATH=/var/www/dai
 
 Document root web server arahkan ke folder `current/public` di deploy path, contoh `/var/www/daily-task/current/public`.
 
+Jika Nginx/PHP-FPM berjalan di Docker dan path host berbeda dengan path di container, gunakan `DEPLOY_DB_PATH` untuk path runtime yang terlihat dari container PHP-FPM.
+
+Contoh host deploy path:
+
+```text
+/root/compose/nginx/data/daily-task
+```
+
+Contoh path yang terlihat dari container PHP-FPM:
+
+```text
+/var/www/daily-task
+```
+
+Deploy:
+
+```bash
+DEPLOY_HOST=your-server-ip-or-domain \
+DEPLOY_USER=deploy \
+DEPLOY_PATH=/root/compose/nginx/data/daily-task \
+DEPLOY_DB_PATH=/var/www/daily-task/shared/storage/tasks.sqlite \
+vendor/bin/dep deploy production
+```
+
+Pastikan folder SQLite writable oleh user PHP-FPM container. Untuk image official `php:fpm`, user biasanya `www-data` UID `33`:
+
+```bash
+mkdir -p /root/compose/nginx/data/daily-task/shared/storage
+chown -R 33:33 /root/compose/nginx/data/daily-task/shared/storage
+chmod -R 775 /root/compose/nginx/data/daily-task/shared/storage
+```
+
+Jika `.env` sudah pernah dibuat, Deployer tidak menimpa otomatis. Edit manual:
+
+```env
+DB_PATH=/var/www/daily-task/shared/storage/tasks.sqlite
+```
+
 ## Google Sheet Sync
 
 Fitur Google Sheet memakai Apps Script Web App. Di aplikasi, buka menu `Sync Google Sheet`, isi:

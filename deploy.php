@@ -19,10 +19,15 @@ host('production')
 
 task('deploy:create_env', function (): void {
     $envFile = '{{deploy_path}}/shared/.env';
+    $appUrl = getenv('DEPLOY_APP_URL') ?: 'https://daily-task.dotko.id';
+    $dbPath = getenv('DEPLOY_DB_PATH') ?: '{{deploy_path}}/shared/storage/tasks.sqlite';
+    $authApiUrl = getenv('DEPLOY_AUTH_API_URL') ?: 'https://login.dotko.id/api/login';
+    $authSsoUrl = getenv('DEPLOY_AUTH_SSO_URL') ?: 'https://login.dotko.id/sso/google';
+    $authApiKey = getenv('DEPLOY_AUTH_API_KEY') ?: 'change-this-api-client-secret';
 
     if (! test("[ -f $envFile ]")) {
         run('mkdir -p {{deploy_path}}/shared/storage');
-        run("printf '%s\n' 'APP_ENV=production' 'APP_URL=https://daily-task.dotko.id' 'DB_PATH={{deploy_path}}/shared/storage/tasks.sqlite' 'AUTH_API_URL=https://login.dotko.id/api/login' 'AUTH_SSO_URL=https://login.dotko.id/sso/google' 'AUTH_API_KEY=change-this-api-client-secret' > $envFile");
+        run("printf '%s\n' 'APP_ENV=production' 'APP_URL=$appUrl' 'DB_PATH=$dbPath' 'AUTH_API_URL=$authApiUrl' 'AUTH_SSO_URL=$authSsoUrl' 'AUTH_API_KEY=$authApiKey' > $envFile");
     }
 });
 
