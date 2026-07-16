@@ -16,7 +16,7 @@ final class TaskRepository
     public function all(int $userId): array
     {
         $statement = $this->pdo->prepare(
-            'SELECT * FROM tasks WHERE user_id = :user_id ORDER BY completed ASC, due_date IS NULL ASC, due_date ASC, created_at DESC'
+            'SELECT * FROM tasks WHERE user_id = :user_id ORDER BY completed ASC, due_date ASC NULLS LAST, created_at DESC'
         );
 
         $statement->execute(['user_id' => $userId]);
@@ -80,7 +80,7 @@ final class TaskRepository
             'notes' => trim($data['notes'] ?? ''),
             'priority' => $this->normalizePriority($data['priority'] ?? 'normal'),
             'due_date' => $this->normalizeDate($data['due_date'] ?? ''),
-            'completed' => (int) (($data['completed'] ?? 0) === '1' || ($data['completed'] ?? 0) === 1),
+            'completed' => ($data['completed'] ?? 0) === '1' || ($data['completed'] ?? 0) === 1,
             'updated_at' => date('c'),
         ]);
     }
@@ -88,7 +88,7 @@ final class TaskRepository
     public function toggle(int $userId, int $id): void
     {
         $statement = $this->pdo->prepare(
-            'UPDATE tasks SET completed = CASE completed WHEN 1 THEN 0 ELSE 1 END, updated_at = :updated_at WHERE id = :id AND user_id = :user_id'
+            'UPDATE tasks SET completed = NOT completed, updated_at = :updated_at WHERE id = :id AND user_id = :user_id'
         );
 
         $statement->execute([

@@ -15,8 +15,11 @@ session_start();
 
 Config::loadEnv(dirname(__DIR__) . '/.env');
 
-$dbPath = getenv('DB_PATH') ?: dirname(__DIR__) . '/storage/tasks.sqlite';
-$pdo = Database::connect($dbPath);
+$pdo = Database::connect(
+    getenv('DB_DSN') ?: 'pgsql:host=127.0.0.1;port=5432;dbname=daily_task',
+    getenv('DB_USER') ?: 'daily_task',
+    getenv('DB_PASS') ?: ''
+);
 $repository = new TaskRepository($pdo);
 $sheetSettingsRepository = new SheetSettingsRepository($pdo);
 $currentUser = $_SESSION['user'] ?? null;
@@ -457,7 +460,7 @@ function renderLogin(?string $error): void
             <section class="auth-copy">
                 <p class="eyebrow">Private Workspace</p>
                 <h1>Daily task yang hanya kamu yang bisa buka.</h1>
-                <p class="subtitle">Masuk memakai akun pusat di login.dotko.id. Setelah login, task harian akan tersimpan sesuai user kamu.</p>
+                <p class="subtitle">Masuk menggunakan akun terverifikasi untuk mengakses dan mengelola task harian Anda secara aman.</p>
                 <div class="auth-points" aria-label="Keamanan aplikasi">
                     <span>Google OAuth</span>
                     <span>Session privat</span>

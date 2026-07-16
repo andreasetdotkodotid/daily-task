@@ -1,11 +1,13 @@
 {
   "name": "andreas/daily-task",
   "description": "Aplikasi daily task sederhana menggunakan PHP, Composer, HTML, CSS, dan JavaScript.",
+  "version": "2.0.0",
+  "license": "proprietary",
   "type": "project",
   "require": {
     "php": ">=8.1",
     "ext-pdo": "*",
-    "ext-pdo_sqlite": "*"
+    "ext-pdo_pgsql": "*"
   },
   "require-dev": {
     "deployer/deployer": "^7.5"

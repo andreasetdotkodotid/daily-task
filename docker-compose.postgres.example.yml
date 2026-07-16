@@ -1,0 +1,22 @@
+services:
+  postgres:
+    container_name: daily-task-postgres
+    image: postgres:16-alpine
+    networks:
+      - production
+    environment:
+      POSTGRES_DB: ${DAILY_TASK_POSTGRES_DB}
+      POSTGRES_USER: ${DAILY_TASK_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${DAILY_TASK_POSTGRES_PASSWORD}
+    volumes:
+      - "$PWD/postgres/daily-task/data:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DAILY_TASK_POSTGRES_USER} -d ${DAILY_TASK_POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+networks:
+  production:
+    external: true

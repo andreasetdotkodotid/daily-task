@@ -1,6 +1,6 @@
 # Daily Task
 
-Aplikasi daily task sederhana menggunakan PHP, Composer, SQLite, HTML, CSS, dan JavaScript.
+Aplikasi daily task sederhana menggunakan PHP, Composer, PostgreSQL, HTML, CSS, dan JavaScript.
 
 ## Fitur
 
@@ -8,7 +8,7 @@ Aplikasi daily task sederhana menggunakan PHP, Composer, SQLite, HTML, CSS, dan 
 - Tandai task selesai atau belum selesai.
 - Hapus task.
 - Filter task berdasarkan semua, belum selesai, dan selesai.
-- Penyimpanan lokal memakai SQLite.
+- Penyimpanan data memakai PostgreSQL.
 
 ## Menjalankan Lokal
 
@@ -19,6 +19,39 @@ composer serve
 
 Buka `http://127.0.0.1:8000`.
 
+Pastikan PostgreSQL berjalan dan `.env` sudah berisi `DB_DSN`, `DB_USER`, dan `DB_PASS`.
+
+## PostgreSQL Dengan Docker Compose
+
+Contoh service PostgreSQL tersedia di `docker-compose.postgres.example.yml` dan mengikuti pola Docker Compose dengan network `production` serta bind mount:
+
+```yaml
+volumes:
+  - "$PWD/postgres/daily-task/data:/var/lib/postgresql/data"
+```
+
+Contoh environment untuk file `.env` Docker Compose:
+
+```env
+DAILY_TASK_POSTGRES_DB=daily_task
+DAILY_TASK_POSTGRES_USER=daily_task
+DAILY_TASK_POSTGRES_PASSWORD=change-this-strong-password
+```
+
+Jika PHP-FPM berjalan di network Docker yang sama, gunakan DSN:
+
+```env
+DB_DSN=pgsql:host=postgres;port=5432;dbname=daily_task
+DB_USER=daily_task
+DB_PASS=change-this-strong-password
+```
+
+Jika PHP berjalan dari host dan PostgreSQL diekspos ke localhost, gunakan:
+
+```env
+DB_DSN=pgsql:host=127.0.0.1;port=5432;dbname=daily_task
+```
+
 ## Environment
 
 Salin `.env.example` menjadi `.env` bila ingin mengatur konfigurasi production.
@@ -26,7 +59,9 @@ Salin `.env.example` menjadi `.env` bila ingin mengatur konfigurasi production.
 ```env
 APP_ENV=production
 APP_URL=https://daily-task.example.com
-DB_PATH=storage/tasks.sqlite
+DB_DSN=pgsql:host=127.0.0.1;port=5432;dbname=daily_task
+DB_USER=daily_task
+DB_PASS=change-this-password
 AUTH_API_URL=https://login.dotko.id/api/login
 AUTH_SSO_URL=https://login.dotko.id/sso/google
 AUTH_API_KEY=change-this-api-client-secret
@@ -39,28 +74,22 @@ Untuk Google OAuth, aplikasi ini akan redirect ke `AUTH_SSO_URL`, lalu menerima 
 ## Deploy Production Dengan Deployer
 
 1. Ubah `repository` di `deploy.php` jika nama repository berbeda.
-2. Pastikan server memiliki PHP 8.1+, Composer, ekstensi `pdo_sqlite`, dan akses SSH.
+2. Pastikan server memiliki PHP 8.1+, Composer, ekstensi `pdo_pgsql`, PostgreSQL, dan akses SSH.
 3. Jalankan deploy dengan environment variable agar hostname dan user server tidak perlu disimpan di repository:
 
 ```bash
-DEPLOY_HOST=your-server-ip-or-domain DEPLOY_USER=deploy DEPLOY_PATH=/var/www/daily-task vendor/bin/dep deploy production
+DEPLOY_HOST=your-server-ip-or-domain \
+DEPLOY_USER=deploy \
+DEPLOY_PATH=/var/www/daily-task \
+DEPLOY_DB_DSN='pgsql:host=127.0.0.1;port=5432;dbname=daily_task' \
+DEPLOY_DB_USER=daily_task \
+DEPLOY_DB_PASS=change-this-password \
+vendor/bin/dep deploy production
 ```
 
 Document root web server arahkan ke folder `current/public` di deploy path, contoh `/var/www/daily-task/current/public`.
 
-Jika Nginx/PHP-FPM berjalan di Docker dan path host berbeda dengan path di container, gunakan `DEPLOY_DB_PATH` untuk path runtime yang terlihat dari container PHP-FPM.
-
-Contoh host deploy path:
-
-```text
-/root/compose/nginx/data/daily-task
-```
-
-Contoh path yang terlihat dari container PHP-FPM:
-
-```text
-/var/www/daily-task
-```
+Jika Nginx/PHP-FPM dan PostgreSQL berjalan di Docker network yang sama, gunakan hostname service PostgreSQL pada `DEPLOY_DB_DSN`.
 
 Deploy:
 
@@ -68,23 +97,23 @@ Deploy:
 DEPLOY_HOST=your-server-ip-or-domain \
 DEPLOY_USER=deploy \
 DEPLOY_PATH=/root/compose/nginx/data/daily-task \
-DEPLOY_DB_PATH=/var/www/daily-task/shared/storage/tasks.sqlite \
+DEPLOY_DB_DSN='pgsql:host=postgres;port=5432;dbname=daily_task' \
+DEPLOY_DB_USER=daily_task \
+DEPLOY_DB_PASS=change-this-password \
 vendor/bin/dep deploy production
-```
-
-Pastikan folder SQLite writable oleh user PHP-FPM container. Untuk image official `php:fpm`, user biasanya `www-data` UID `33`:
-
-```bash
-mkdir -p /root/compose/nginx/data/daily-task/shared/storage
-chown -R 33:33 /root/compose/nginx/data/daily-task/shared/storage
-chmod -R 775 /root/compose/nginx/data/daily-task/shared/storage
 ```
 
 Jika `.env` sudah pernah dibuat, Deployer tidak menimpa otomatis. Edit manual:
 
 ```env
-DB_PATH=/var/www/daily-task/shared/storage/tasks.sqlite
+DB_DSN=pgsql:host=postgres;port=5432;dbname=daily_task
+DB_USER=daily_task
+DB_PASS=change-this-password
 ```
+
+## Upgrade Ke v2.0.0
+
+Versi `v2.0.0` mengganti database dari SQLite ke PostgreSQL. Ini breaking change: `DB_PATH` tidak dipakai lagi dan data SQLite lama tidak otomatis dimigrasikan. Untuk instalasi baru, mulai dengan database PostgreSQL kosong.
 
 ## Google Sheet Sync
 
