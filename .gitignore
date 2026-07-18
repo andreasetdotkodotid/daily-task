@@ -1,6 +1,8 @@
 /vendor/
 /.env
 /.deployer/
+/PRIVATE_NOTES.md
+/private-docs/
 
 # Runtime storage
 /storage/*.sqlite
@@ -18,3 +20,6 @@
 Thumbs.db
 .idea/
 .vscode/
+
+# deploy environment
+deploy-env

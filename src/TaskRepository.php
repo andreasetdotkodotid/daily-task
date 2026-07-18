@@ -80,7 +80,7 @@ final class TaskRepository
             'notes' => trim($data['notes'] ?? ''),
             'priority' => $this->normalizePriority($data['priority'] ?? 'normal'),
             'due_date' => $this->normalizeDate($data['due_date'] ?? ''),
-            'completed' => ($data['completed'] ?? 0) === '1' || ($data['completed'] ?? 0) === 1,
+            'completed' => $this->normalizeCompleted($data['completed'] ?? 0),
             'updated_at' => date('c'),
         ]);
     }
@@ -112,5 +112,10 @@ final class TaskRepository
     private function normalizeDate(string $date): ?string
     {
         return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1 ? $date : null;
+    }
+
+    private function normalizeCompleted(string|int $completed): string
+    {
+        return $completed === '1' || $completed === 1 ? 'TRUE' : 'FALSE';
     }
 }

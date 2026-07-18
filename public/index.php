@@ -169,7 +169,7 @@ $selectedDate = normalizeDate(queryParam('date')) ?? $today;
 $view = queryParam('view') === 'all' ? 'all' : 'date';
 $tasks = $view === 'all' ? $repository->all($userId) : $repository->forDate($userId, $selectedDate);
 $total = count($tasks);
-$done = count(array_filter($tasks, static fn (array $task): bool => (int) $task['completed'] === 1));
+$done = count(array_filter($tasks, static fn (array $task): bool => isCompleted($task['completed'] ?? false)));
 $previousDate = date('Y-m-d', strtotime($selectedDate . ' -1 day'));
 $nextDate = date('Y-m-d', strtotime($selectedDate . ' +1 day'));
 $pageTitle = $view === 'all' ? 'Semua task' : ($selectedDate === $today ? 'Task hari ini' : 'Task untuk ' . $selectedDate);
@@ -200,6 +200,21 @@ function queryParam(string $key): string
 function normalizeDate(string $date): ?string
 {
     return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1 ? $date : null;
+}
+
+function isCompleted(mixed $value): bool
+{
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    if (is_int($value)) {
+        return $value === 1;
+    }
+
+    $normalized = strtolower(trim((string) $value));
+
+    return in_array($normalized, ['1', 't', 'true', 'yes', 'on'], true);
 }
 
 function mutationRedirect(array $data): string
@@ -296,7 +311,7 @@ function buildSheetPayload(array $settings, array $tasks, string $date, array $c
 /** @param array<string, mixed> $task */
 function sheetRow(array $task): array
 {
-    $done = (int) $task['completed'] === 1;
+    $done = isCompleted($task['completed'] ?? false);
 
     return [
         'date' => (string) ($task['due_date'] ?? ''),
@@ -593,7 +608,7 @@ function renderLogin(?string $error): void
             <?php endif; ?>
 
             <?php foreach ($tasks as $task): ?>
-                <?php $isDone = (int) $task['completed'] === 1; ?>
+                <?php $isDone = isCompleted($task['completed'] ?? false); ?>
                 <article class="task panel <?= $isDone ? 'is-done' : '' ?> <?= $editId === (int) $task['id'] ? 'is-editing' : '' ?>" data-status="<?= $isDone ? 'done' : 'open' ?>">
                     <?php if ($editId === (int) $task['id']): ?>
                         <form method="post" class="task-edit-form">
