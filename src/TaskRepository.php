@@ -60,16 +60,17 @@ final class TaskRepository
     /** @param array{title:string,obstacle?:string,notes?:string,priority?:string,due_date?:string,completed?:string|int} $data */
     public function update(int $userId, int $id, array $data): void
     {
+        $completed = $this->normalizeCompleted($data['completed'] ?? 0) ? 'TRUE' : 'FALSE';
         $statement = $this->pdo->prepare(
-            'UPDATE tasks
+            "UPDATE tasks
              SET title = :title,
                  obstacle = :obstacle,
                  notes = :notes,
                  priority = :priority,
                  due_date = :due_date,
-                 completed = :completed,
+                 completed = $completed,
                  updated_at = :updated_at
-             WHERE id = :id AND user_id = :user_id'
+             WHERE id = :id AND user_id = :user_id"
         );
 
         $statement->execute([
@@ -80,7 +81,6 @@ final class TaskRepository
             'notes' => trim($data['notes'] ?? ''),
             'priority' => $this->normalizePriority($data['priority'] ?? 'normal'),
             'due_date' => $this->normalizeDate($data['due_date'] ?? ''),
-            'completed' => $this->normalizeCompleted($data['completed'] ?? 0),
             'updated_at' => date('c'),
         ]);
     }
@@ -114,8 +114,8 @@ final class TaskRepository
         return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1 ? $date : null;
     }
 
-    private function normalizeCompleted(string|int $completed): string
+    private function normalizeCompleted(string|int $completed): bool
     {
-        return $completed === '1' || $completed === 1 ? 'TRUE' : 'FALSE';
+        return $completed === '1' || $completed === 1;
     }
 }
